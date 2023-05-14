@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Persons App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    
+    <div class="container">
+        <h1>Persons App</h1>
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name">
+        </div>
+        <div>
+            <label for="age">Age:</label>
+            <input type="number" id="age">
+        </div>
+        <div>
+            <label for="gender">Gender:</label>
+            <select id="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email">
+        </div>
+        <button id="add">Add Person</button>
+    </div>
+    <hr>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Email</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="personsTable">
+        </tbody>
+    </table>
+    <script>
+        // Get all persons and display them in the table
+        $.get('/persons', function (persons) {
+            $.each(persons, function (i, person) {
+                addPersonToTable(person);
+            });
+        });
+
+        // Add person event listener
+        $('#add').click(function () {
+            const name = $('#name').val();
+            const age = $('#age').val();
+            const gender = $('#gender').val();
+            const email = $('#email').val();
+
+            $.post('/persons', { name, age, gender, email }, function () {
+                // Clear the inputs and add person to table
+                $('#name').val('');
+                $('#age').val('');
+                $('#gender').val('male');
+                $('#email').val('');
+                const id = Math.floor(Math.random() * 10000);
+                const person = { id, name, age, gender, email };
+                addPersonToTable(person);
+            });
+        });
+
+        // Edit person event listener
+        $('body').on('click', '.edit', function () {
+            const id = $(this).data('id');
+            const tr = $(this).closest('tr');
+            const name = tr.find('.name').text();
+            const age = tr.find('.age').text();
+            const gender = tr.find('.gender').text();
+            const email = tr.find('.email').text();
+
+            // Replace the table cells with input fields
+            tr.find('.name').html('<input type="text" class="editName" value="' + name + '">');
+            tr.find('.age').html('<input type="number" class="editAge" value="' + age + '">');
+            tr.find('.gender').html('<select class="editGender"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>');
+            tr.find('.gender select').val(gender);
+            tr.find('.email').html('<input type="email" class="editEmail" value="' + email + '">');
+
+            // Replace the edit button with save and cancel buttons
+            $(this).replaceWith('<button class="save" data-id="' + id + '">Save</button> <button class="cancel" data-id="' + id + '">Cancel</button>');
+        });
+
+        // Save edited person event listener
+        $('body').on('click', '.save', function () {
+            const id = $(this).data('id');
+            const tr = $(this).closest('tr');
+            const name = tr.find('.editName').val();
+            const age = tr.find('.editAge').val();
+            const gender = tr.find('.editGender').val();
+            const email = tr.find('.editEmail').val();
+
+            $.ajax({
+                url: '/persons/' + id,
+                type: 'PUT',
+                data: { name, age, gender, email },
+                success: function () {
+                    // Replace the input fields with table cells
+                    tr.find('.name').text(name);
+                    tr.find('.age').text(age);
+                    tr.find('.gender').text(gender);
+                    tr.find('.email').text(email);
+
+                    // Replace the save and cancel buttons with the edit button
+                    tr.find('.save, .cancel').replaceWith('<button class="edit" data-id="' + id + '">Edit</button>');
+                }
+            });
+        });
+
+        // Cancel edit event listener
+        $('body').on('click', '.cancel', function () {
+            const id = $(this).data('id');
+            const tr = $(this).closest('tr');
+            const person = getPersonById(id);
+
+            // Replace the input fields with table cells
+            tr.find('.name').text(person.name);
+            tr.find('.age').text(person.age);
+            tr.find('.gender').text(person.gender);
+            tr.find('.email').text(person.email);
+
+            // Replace the save and cancel buttons with the edit button
+            tr.find('.save, .cancel').replaceWith('<button class="edit" data-id="' + id + '">Edit</button>');
+        });
+
+        // Delete person event listener
+        $('body').on('click', '.delete', function () {
+            const id = $(this).data('id');
+            const tr = $(this).closest('tr');
+
+            $.ajax({
+                url: '/persons/' + id,
+                type: 'DELETE',
+                success: function () {
+                    // Remove the table row
+                    tr.remove();
+                }
+            });
+        });
+
+        // Helper function to add a person to the table
+        function addPersonToTable(person) {
+            const tr = $('<tr>');
+            tr.append('<td>' + person.id + '</td>');
+            tr.append('<td class="name">' + person.name + '</td>');
+            tr.append('<td class="age">' + person.age + '</td>');
+            tr.append('<td class="gender">' + person.gender + '</td>');
+            tr.append('<td class="email">' + person.email + '</td>');
+            tr.append('<td><button class="edit" data-id="' + person.id + '">Edit</button> <button class="delete" data-id="' + person.id + '">Delete</button></td>');
+            $('#personsTable').append(tr);
+        }
+
+        // Helper function to get a person by ID
+        function getPersonById(id) {
+            return $.grep($('#personsTable tr'), function (tr) {
+                return $(tr).find('td:first').text() == id;
+            })[0];
+        }
+    </script>
+</body>
+
+</html>
